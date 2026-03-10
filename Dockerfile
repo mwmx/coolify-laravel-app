@@ -16,7 +16,7 @@
 
 # COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
-FROM mwmx/devriglaravelbase:001
+FROM mwmx/devriglaravelbase:002
 
 WORKDIR /var/www/html
 
