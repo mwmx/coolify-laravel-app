@@ -32,8 +32,11 @@ RUN composer install --prefer-dist --optimize-autoloader --no-interaction
 
 COPY unit.json /docker-entrypoint.d/unit.json
 
-EXPOSE 8000
+
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+EXPOSE 8000
+
 CMD ["/entrypoint.sh"]
