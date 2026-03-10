@@ -34,4 +34,6 @@ COPY unit.json /docker-entrypoint.d/unit.json
 
 EXPOSE 8000
 
-CMD ["unitd", "--no-daemon"]
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+CMD ["/entrypoint.sh"]
