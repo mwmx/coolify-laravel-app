@@ -20,3 +20,4 @@ RUN apt install -y procps
 RUN apt install -y vim
 RUN apt install -y iputils-ping
 RUN apt install -y mariadb-client default-mysql-client
+RUN apt install -y tmux
