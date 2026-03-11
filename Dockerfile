@@ -1,6 +1,6 @@
 # This docker image is defined in docker/Dockerfile and is pushed to docker
 # hub and its tag incremented whenever it's changed.
-FROM mwmx/devriglaravelbase:003
+FROM mwmx/devriglaravelbase:004
 
 WORKDIR /var/www/html
 
