@@ -18,3 +18,4 @@ COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
 RUN apt install -y procps
 RUN apt install -y vim
+RUN apt install -y iputils-ping

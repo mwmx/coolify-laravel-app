@@ -1,4 +1,4 @@
-FROM mwmx/devriglaravelbase:002
+FROM mwmx/devriglaravelbase:003
 
 WORKDIR /var/www/html
 
