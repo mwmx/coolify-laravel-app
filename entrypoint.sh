@@ -31,9 +31,8 @@ case "${role}" in
         # caches. Workers wait for this container to become healthy first.
         "${priv[@]}" php artisan migrate --force
         "${priv[@]}" php artisan config:cache
+        "${priv[@]}" php artisan route:cache
         "${priv[@]}" php artisan view:cache
-        # NB: route:cache is intentionally skipped — routes/web.php uses a
-        # closure route, which cannot be serialized.
 
         unitd --no-daemon &
 
