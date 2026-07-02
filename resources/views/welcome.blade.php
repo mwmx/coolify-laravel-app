@@ -74,6 +74,7 @@
             border-bottom: 1px solid var(--border);
         }
         .count { color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+        .dim { color: var(--muted); font-size: 0.8rem; }
         .note {
             padding: 0.75rem 1rem;
             color: var(--bad);
@@ -146,6 +147,43 @@
             @if ($database['error'])
                 <div class="note">{{ $database['error'] }}</div>
             @endif
+        </section>
+
+        <section>
+            <h2>
+                Cron
+                <span class="count">— {{ $cron['command'] }} (every minute)</span>
+            </h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Store</th>
+                        <th>Last run</th>
+                        <th>When</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($cron['stores'] as $store => $info)
+                        <tr>
+                            <td class="key">{{ ucfirst($store) }}</td>
+                            <td class="val">
+                                @if ($info['available'])
+                                    {{ $info['timestamp'] }}
+                                @else
+                                    <span class="badge bad">never</span>
+                                @endif
+                            </td>
+                            <td class="val">
+                                @if ($info['available'])
+                                    <span class="badge {{ $info['stale'] ? 'warn' : 'ok' }}">{{ $info['ago'] }}</span>
+                                @elseif ($info['error'])
+                                    <span class="dim">{{ $info['error'] }}</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
         </section>
 
         <section>

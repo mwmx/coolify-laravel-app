@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Migrations\Migrator;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use PDO;
 use Throwable;
@@ -17,6 +19,7 @@ class StatusController extends Controller
             'drivers' => $this->driverInfo(),
             'database' => $this->databaseInfo(),
             'migrations' => $this->migrationInfo($migrator),
+            'cron' => $this->cronInfo(),
         ]);
     }
 
@@ -82,6 +85,61 @@ class StatusController extends Controller
                 'driver' => $driver,
                 'connected' => false,
                 'version' => null,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * @return array{command: string, stores: array<string, array{available: bool, timestamp: ?string, ago: ?string, stale: bool, error: ?string}>}
+     */
+    private function cronInfo(): array
+    {
+        $stores = [];
+
+        foreach ((array) config('cron.stores') as $store) {
+            $stores[$store] = $this->cronStoreInfo($store);
+        }
+
+        return [
+            'command' => 'cron:write-timestamp',
+            'stores' => $stores,
+        ];
+    }
+
+    /**
+     * @return array{available: bool, timestamp: ?string, ago: ?string, stale: bool, error: ?string}
+     */
+    private function cronStoreInfo(string $store): array
+    {
+        try {
+            $value = Cache::store($store)->get((string) config('cron.cache_key'));
+
+            if ($value === null) {
+                return [
+                    'available' => false,
+                    'timestamp' => null,
+                    'ago' => null,
+                    'stale' => true,
+                    'error' => 'No timestamp recorded yet.',
+                ];
+            }
+
+            $ranAt = Carbon::parse($value);
+
+            return [
+                'available' => true,
+                'timestamp' => $ranAt->toIso8601String(),
+                'ago' => $ranAt->diffForHumans(),
+                'stale' => $ranAt->lessThan(now()->subMinutes(2)),
+                'error' => null,
+            ];
+        } catch (Throwable $e) {
+            return [
+                'available' => false,
+                'timestamp' => null,
+                'ago' => null,
+                'stale' => true,
                 'error' => $e->getMessage(),
             ];
         }

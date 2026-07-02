@@ -37,6 +37,10 @@ x-app-env: &app-env
   SESSION_DRIVER: database
   QUEUE_CONNECTION: database
   CACHE_STORE: database
+  REDIS_CLIENT: phpredis
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  MEMCACHED_HOST: memcached
 
 services:
   app:
@@ -49,6 +53,10 @@ services:
     depends_on:
       mariadb:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      memcached:
+        condition: service_started
     expose:
       - "8000"
     healthcheck:
@@ -115,9 +123,29 @@ services:
     networks:
       - default
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - default
+
+  memcached:
+    image: memcached:1.6-alpine
+    restart: unless-stopped
+    networks:
+      - default
+
 volumes:
   storage:
   db-data:
+  redis-data:
 
 networks:
   default:

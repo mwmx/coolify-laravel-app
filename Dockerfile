@@ -26,6 +26,14 @@ FROM mwmx/devriglaravelbase:005
 
 WORKDIR /var/www/html
 
+# The base image ships the redis PHP extension but not memcached; add it here
+# so the cron timestamp can be written to both cache backends.
+RUN apt-get update \
+    && apt-get install -y libmemcached-dev zlib1g-dev \
+    && yes '' | pecl install memcached \
+    && docker-php-ext-enable memcached \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN mkdir -p /var/www/html/storage /var/www/html/bootstrap/cache \
     && chown -R unit:unit /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
