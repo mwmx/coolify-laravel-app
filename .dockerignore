@@ -1,0 +1,39 @@
+# Version control / tooling
+.git
+.gitignore
+.gitattributes
+.github
+.editorconfig
+.claude
+.mcp.json
+boost.json
+README.md
+
+# Dependencies & build output are produced inside the image
+node_modules
+vendor
+public/build
+public/hot
+public/storage
+
+# Local environment — provided by Dokploy at deploy time
+.env
+.env.*
+!.env.example
+
+# Caches
+bootstrap/cache/*.php
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+*.log
+.phpunit.result.cache
+.phpunit.cache
+
+# Tests are not needed in the runtime image
+tests
+phpunit.xml
+
+# Docker helper that only builds the base image
+docker/build.sh

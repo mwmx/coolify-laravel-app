@@ -1,25 +1,49 @@
-# This docker image is defined in docker/Dockerfile and is pushed to docker
-# hub and its tag incremented whenever it's changed.
+# syntax=docker/dockerfile:1
+
+# ---------------------------------------------------------------------------
+# Stage 1 — compile the front-end assets with Vite.
+#
+# Dokploy builds from a clean git checkout, where public/build does not exist
+# (it is git-ignored). The welcome view uses @vite(...), so the manifest must
+# be generated here rather than relying on a locally committed build.
+# ---------------------------------------------------------------------------
+FROM node:22-slim AS assets
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY vite.config.js ./
+COPY resources ./resources
+RUN npm run build
+
+# ---------------------------------------------------------------------------
+# Stage 2 — the application image.
+#
+# The base image is defined in docker/Dockerfile and pushed to Docker Hub;
+# its tag is incremented whenever it changes. It bundles Nginx Unit, PHP 8.3
+# and all required extensions (pdo_mysql, redis, gd, intl, ...).
+# ---------------------------------------------------------------------------
 FROM mwmx/devriglaravelbase:005
 
 WORKDIR /var/www/html
 
-RUN mkdir -p /var/www/html/storage /var/www/html/bootstrap/cache
+RUN mkdir -p /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chown -R unit:unit /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-RUN chown -R unit:unit /var/www/html/storage bootstrap/cache && chmod -R 775 /var/www/html/storage
-
-RUN chown -R unit:unit storage bootstrap/cache && chmod -R 775 storage bootstrap/cache
-
-# By using a step to copy composer.json and composer.lock followed by a step
-# to run composer install, we can effectively save the time it takes to
-# download and install dependencies on each rebuild.  If either composer.json
-# or composer.lock changes then this cache is thrown away.
+# Install PHP dependencies first so this layer is cached until composer.json
+# or composer.lock changes. --no-dev keeps development tooling out of the
+# production image.
 COPY composer.json composer.lock ./
-RUN composer install --prefer-dist --optimize-autoloader --no-interaction --no-scripts
+RUN composer install --prefer-dist --optimize-autoloader --no-interaction --no-scripts --no-dev
 
 # Then we copy the rest of the app in.
 COPY . .
-RUN composer dump-autoload --optimize
+
+# Bring in the assets compiled in stage 1 (public/build is git-ignored and
+# excluded via .dockerignore, so this copy is authoritative).
+COPY --from=assets /app/public/build ./public/build
+
+RUN composer dump-autoload --optimize --no-dev
 
 COPY unit.json /docker-entrypoint.d/unit.json
 
@@ -28,4 +52,7 @@ RUN chmod +x /entrypoint.sh
 
 EXPOSE 8000
 
-CMD ["/entrypoint.sh"]
+# The entrypoint takes a role argument (web | queue | scheduler). The compose
+# file overrides the command for the worker and scheduler services.
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["web"]

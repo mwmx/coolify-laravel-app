@@ -1,0 +1,125 @@
+# Docker Compose stack for deploying this Laravel app with Dokploy.
+#
+# Required environment variables (set these in the Dokploy "Environment" tab):
+#
+#   APP_KEY          base64:... — generate with `php artisan key:generate --show`
+#   APP_URL          public URL, e.g. https://app.example.com
+#   APP_HOST         bare host for Traefik routing, e.g. app.example.com
+#   DB_PASSWORD      password for the application database user
+#   DB_ROOT_PASSWORD MariaDB root password
+#
+# Optional (sensible defaults shown): APP_NAME, APP_DEBUG, LOG_LEVEL,
+# DB_DATABASE, DB_USERNAME.
+#
+# Routing: the app joins Dokploy's external "dokploy-network" and carries
+# Traefik labels so a domain is served on the app's port 8000. If you prefer to
+# manage the domain from the Dokploy UI instead, you may drop the labels below.
+
+x-app-build: &app-build
+  context: .
+  dockerfile: Dockerfile
+
+x-app-env: &app-env
+  APP_NAME: ${APP_NAME:-Laravel}
+  APP_ENV: production
+  APP_KEY: ${APP_KEY}
+  APP_DEBUG: ${APP_DEBUG:-false}
+  APP_URL: ${APP_URL}
+  LOG_CHANNEL: stack
+  LOG_STACK: single
+  LOG_LEVEL: ${LOG_LEVEL:-warning}
+  DB_CONNECTION: mysql
+  DB_HOST: mariadb
+  DB_PORT: 3306
+  DB_DATABASE: ${DB_DATABASE:-laravel}
+  DB_USERNAME: ${DB_USERNAME:-laravel}
+  DB_PASSWORD: ${DB_PASSWORD}
+  SESSION_DRIVER: database
+  QUEUE_CONNECTION: database
+  CACHE_STORE: database
+
+services:
+  app:
+    build: *app-build
+    image: coolify-laravel-app:latest
+    restart: unless-stopped
+    environment: *app-env
+    volumes:
+      - storage:/storage
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/up"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - default
+      - dokploy-network
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.laravel-app.rule=Host(`${APP_HOST}`)
+      - traefik.http.routers.laravel-app.entrypoints=websecure
+      - traefik.http.routers.laravel-app.tls.certresolver=letsencrypt
+      - traefik.http.services.laravel-app.loadbalancer.server.port=8000
+      - traefik.docker.network=dokploy-network
+
+  queue:
+    build: *app-build
+    image: coolify-laravel-app:latest
+    command: ["queue"]
+    restart: unless-stopped
+    environment: *app-env
+    volumes:
+      - storage:/storage
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - default
+
+  scheduler:
+    build: *app-build
+    image: coolify-laravel-app:latest
+    command: ["scheduler"]
+    restart: unless-stopped
+    environment: *app-env
+    volumes:
+      - storage:/storage
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - default
+
+  mariadb:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_DATABASE:-laravel}
+      MARIADB_USER: ${DB_USERNAME:-laravel}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - default
+
+volumes:
+  storage:
+  db-data:
+
+networks:
+  default:
+  dokploy-network:
+    external: true
